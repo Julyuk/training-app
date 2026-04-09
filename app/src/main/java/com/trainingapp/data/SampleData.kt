@@ -1,6 +1,8 @@
 package com.trainingapp.data
 
 import com.trainingapp.data.model.*
+import com.trainingapp.data.model.ActivityLevel
+import com.trainingapp.data.model.Sex
 import java.time.LocalDate
 
 /**
@@ -157,7 +159,9 @@ object SampleData {
         heightCm = 165,
         fitnessGoal = "Підтримання форми та розвиток сили",
         weeklyWorkoutTarget = 4,
-        isPremium = false
+        isPremium = false,
+        sex = Sex.FEMALE,
+        activityLevel = ActivityLevel.MODERATE
     )
 
     fun findWorkoutById(id: Int): Workout? = workouts.find { it.id == id }
