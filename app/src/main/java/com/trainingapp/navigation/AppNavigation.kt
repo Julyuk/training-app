@@ -6,30 +6,57 @@ import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavType
 import androidx.navigation.compose.*
 import androidx.navigation.navArgument
-import com.trainingapp.data.SampleData
+import com.trainingapp.TrainingApp
 import com.trainingapp.ui.screens.*
+import com.trainingapp.ui.viewmodel.ProfileViewModel
+import com.trainingapp.ui.viewmodel.WorkoutDetailViewModel
+import com.trainingapp.ui.viewmodel.WorkoutListViewModel
 
 /**
  * Root composable that owns the single [NavController] and draws the
- * bottom navigation bar. The bar is visible only on top-level destinations;
- * detail screens slide in on top without it.
+ * bottom navigation bar.
+ *
+ * Data is no longer sourced from [SampleData]; instead each destination
+ * uses a ViewModel backed by [WorkoutRepository] → Room database.
+ * The bar is visible only on top-level destinations; detail screens
+ * slide in on top without it.
  */
 @Composable
 fun AppNavigation() {
+    val context = LocalContext.current
+    val repository = remember {
+        (context.applicationContext as TrainingApp).workoutRepository
+    }
+
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
 
-    // Destinations that show the bottom bar
     val topLevelRoutes = listOf(Screen.WorkoutList.route, Screen.Profile.route)
     val showBottomBar = currentRoute in topLevelRoutes
+
+    // WorkoutListViewModel is scoped to the NavBackStackEntry for WorkoutList,
+    // but we create it here so the same instance survives tab switches.
+    val workoutListViewModel: WorkoutListViewModel = viewModel(
+        factory = WorkoutListViewModel.factory(repository)
+    )
+
+    val profileViewModel: ProfileViewModel = viewModel(
+        factory = ProfileViewModel.factory(
+            (context.applicationContext as TrainingApp).profilePreferences
+        )
+    )
 
     Scaffold(
         bottomBar = {
@@ -72,44 +99,116 @@ fun AppNavigation() {
             startDestination = Screen.WorkoutList.route,
             modifier = Modifier.padding(innerPadding)
         ) {
+            // ── Workout List ──────────────────────────────────────────────────
             composable(Screen.WorkoutList.route) {
+                val workouts by workoutListViewModel.workouts.collectAsState()
                 WorkoutListScreen(
-                    workouts = SampleData.workouts,
+                    workouts = workouts,
                     onWorkoutClick = { workout ->
                         navController.navigate(Screen.WorkoutDetail.createRoute(workout.id))
+                    },
+                    onToggleCompleted = { workoutListViewModel.toggleCompleted(it) },
+                    onDeleteClick = { workoutListViewModel.deleteWorkout(it) },
+                    onAddClick = { navController.navigate(Screen.AddWorkout.route) }
+                )
+            }
+
+            // ── Add Workout ───────────────────────────────────────────────────
+            composable(Screen.AddWorkout.route) {
+                AddWorkoutScreen(
+                    onBack = { navController.popBackStack() },
+                    onSave = { title, description, duration, calories, isCompleted, category ->
+                        workoutListViewModel.addWorkout(
+                            title, description, duration, calories, isCompleted, category
+                        )
                     }
                 )
             }
 
+            // ── Workout Detail ────────────────────────────────────────────────
             composable(
                 route = Screen.WorkoutDetail.route,
                 arguments = listOf(navArgument("workoutId") { type = NavType.IntType })
             ) { backStackEntry ->
                 val workoutId = backStackEntry.arguments?.getInt("workoutId") ?: return@composable
-                val workout = SampleData.findWorkoutById(workoutId) ?: return@composable
-                WorkoutDetailScreen(
-                    workout = workout,
-                    onBack = { navController.popBackStack() },
-                    onExerciseClick = { exercise ->
-                        navController.navigate(Screen.ExerciseDetail.createRoute(exercise.id))
-                    }
+                val detailViewModel: WorkoutDetailViewModel = viewModel(
+                    key = "workout_detail_$workoutId",
+                    factory = WorkoutDetailViewModel.factory(repository, workoutId)
                 )
+                val workout by detailViewModel.workout.collectAsState()
+                workout?.let { w ->
+                    WorkoutDetailScreen(
+                        workout = w,
+                        onBack = { navController.popBackStack() },
+                        onEditClick = {
+                            navController.navigate(Screen.EditWorkout.createRoute(w.id))
+                        },
+                        onExerciseClick = { exercise ->
+                            navController.navigate(Screen.ExerciseDetail.createRoute(exercise.id))
+                        }
+                    )
+                }
             }
 
+            // ── Exercise Detail ───────────────────────────────────────────────
             composable(
                 route = Screen.ExerciseDetail.route,
                 arguments = listOf(navArgument("exerciseId") { type = NavType.IntType })
             ) { backStackEntry ->
                 val exerciseId = backStackEntry.arguments?.getInt("exerciseId") ?: return@composable
-                val exercise = SampleData.findExerciseById(exerciseId) ?: return@composable
-                ExerciseDetailScreen(
-                    exercise = exercise,
-                    onBack = { navController.popBackStack() }
+                val exerciseViewModel: WorkoutDetailViewModel = viewModel(
+                    key = "exercise_detail_$exerciseId",
+                    factory = WorkoutDetailViewModel.factory(repository, -1, exerciseId)
+                )
+                val exercise by exerciseViewModel.exercise.collectAsState()
+                exercise?.let { e ->
+                    ExerciseDetailScreen(
+                        exercise = e,
+                        onBack = { navController.popBackStack() }
+                    )
+                }
+            }
+
+            // ── Profile ───────────────────────────────────────────────────────
+            composable(Screen.Profile.route) {
+                val workouts by workoutListViewModel.workouts.collectAsState()
+                val profile by profileViewModel.profile.collectAsState()
+
+                ProfileScreen(
+                    profile = profile,
+                    allWorkouts = workouts,
+                    onEditClick = { navController.navigate(Screen.EditProfile.route) }
                 )
             }
 
-            composable(Screen.Profile.route) {
-                ProfileScreen(profile = SampleData.userProfile)
+            // ── Edit Profile ──────────────────────────────────────────────────
+            composable(Screen.EditProfile.route) {
+                val profile by profileViewModel.profile.collectAsState()
+                EditProfileScreen(
+                    profile = profile,
+                    onBack = { navController.popBackStack() },
+                    onSave = { profileViewModel.save(it) }
+                )
+            }
+
+            // ── Edit Workout ──────────────────────────────────────────────────
+            composable(
+                route = Screen.EditWorkout.route,
+                arguments = listOf(navArgument("workoutId") { type = NavType.IntType })
+            ) { backStackEntry ->
+                val workoutId = backStackEntry.arguments?.getInt("workoutId") ?: return@composable
+                val editViewModel: WorkoutDetailViewModel = viewModel(
+                    key = "edit_workout_$workoutId",
+                    factory = WorkoutDetailViewModel.factory(repository, workoutId)
+                )
+                val workout by editViewModel.workout.collectAsState()
+                workout?.let { w ->
+                    EditWorkoutScreen(
+                        workout = w,
+                        onBack = { navController.popBackStack() },
+                        onSave = { updated -> workoutListViewModel.updateWorkout(updated) }
+                    )
+                }
             }
         }
     }

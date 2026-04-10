@@ -18,4 +18,12 @@ sealed class Screen(val route: String) {
     }
 
     object Profile : Screen("profile")
+
+    object AddWorkout : Screen("add_workout")
+
+    object EditProfile : Screen("edit_profile")
+
+    object EditWorkout : Screen("edit_workout/{workoutId}") {
+        fun createRoute(workoutId: Int) = "edit_workout/$workoutId"
+    }
 }
