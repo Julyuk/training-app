@@ -5,7 +5,9 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -26,7 +28,10 @@ import java.util.Locale
 @Composable
 fun WorkoutListScreen(
     workouts: List<Workout>,
-    onWorkoutClick: (Workout) -> Unit
+    onWorkoutClick: (Workout) -> Unit,
+    onToggleCompleted: (Int) -> Unit,
+    onDeleteClick: (Int) -> Unit,
+    onAddClick: () -> Unit
 ) {
     val dateFormatter = DateTimeFormatter.ofPattern("d MMMM yyyy", Locale("uk"))
     val completedCount = workouts.count { it.isCompleted }
@@ -35,6 +40,11 @@ fun WorkoutListScreen(
         topBar = {
             TopAppBar(
                 title = { Text("Мої тренування") },
+                actions = {
+                    IconButton(onClick = onAddClick) {
+                        Icon(Icons.Filled.Add, contentDescription = "Додати тренування")
+                    }
+                },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.primaryContainer
                 )
@@ -62,7 +72,9 @@ fun WorkoutListScreen(
                     WorkoutCard(
                         workout = workout,
                         dateText = workout.date.format(dateFormatter),
-                        onClick = { onWorkoutClick(workout) }
+                        onClick = { onWorkoutClick(workout) },
+                        onToggleCompleted = { onToggleCompleted(workout.id) },
+                        onDeleteClick = { onDeleteClick(workout.id) }
                     )
                 }
             }
@@ -74,7 +86,9 @@ fun WorkoutListScreen(
 private fun WorkoutCard(
     workout: Workout,
     dateText: String,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    onToggleCompleted: () -> Unit,
+    onDeleteClick: () -> Unit
 ) {
     Card(
         modifier = Modifier
@@ -86,15 +100,21 @@ private fun WorkoutCard(
             modifier = Modifier.padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Completion icon
-            Icon(
-                imageVector = if (workout.isCompleted) Icons.Filled.CheckCircle
-                              else Icons.Filled.RadioButtonUnchecked,
-                contentDescription = null,
-                tint = if (workout.isCompleted) MaterialTheme.colorScheme.primary
-                       else MaterialTheme.colorScheme.outline,
-                modifier = Modifier.size(28.dp)
-            )
+            // Completion toggle
+            IconButton(
+                onClick = onToggleCompleted,
+                modifier = Modifier.size(36.dp)
+            ) {
+                Icon(
+                    imageVector = if (workout.isCompleted) Icons.Filled.CheckCircle
+                                  else Icons.Filled.RadioButtonUnchecked,
+                    contentDescription = if (workout.isCompleted) "Позначити як невиконане"
+                                         else "Позначити як виконане",
+                    tint = if (workout.isCompleted) MaterialTheme.colorScheme.primary
+                           else MaterialTheme.colorScheme.outline,
+                    modifier = Modifier.size(28.dp)
+                )
+            }
 
             Spacer(Modifier.width(12.dp))
 
@@ -116,6 +136,14 @@ private fun WorkoutCard(
                     InfoChip("🔥 ${workout.caloriesBurned} ккал")
                     InfoChip("🏋 ${workout.exercises.size} вправ")
                 }
+            }
+
+            IconButton(onClick = onDeleteClick) {
+                Icon(
+                    imageVector = Icons.Filled.Delete,
+                    contentDescription = "Видалити тренування",
+                    tint = MaterialTheme.colorScheme.error
+                )
             }
         }
     }
