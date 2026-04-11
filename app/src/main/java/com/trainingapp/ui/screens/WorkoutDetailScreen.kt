@@ -7,6 +7,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowForwardIos
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -27,6 +28,7 @@ import java.util.Locale
 fun WorkoutDetailScreen(
     workout: Workout,
     onBack: () -> Unit,
+    onEditClick: () -> Unit,
     onExerciseClick: (Exercise) -> Unit
 ) {
     val dateFormatter = DateTimeFormatter.ofPattern("EEEE, d MMMM yyyy", Locale("uk"))
@@ -38,6 +40,11 @@ fun WorkoutDetailScreen(
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.Filled.ArrowBack, contentDescription = "Назад")
+                    }
+                },
+                actions = {
+                    IconButton(onClick = onEditClick) {
+                        Icon(Icons.Filled.Edit, contentDescription = "Редагувати тренування")
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
