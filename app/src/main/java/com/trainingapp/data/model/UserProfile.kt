@@ -2,8 +2,11 @@ package com.trainingapp.data.model
 
 /**
  * Represents the user's personal profile and fitness preferences.
- * Displayed on the Profile screen; [weeklyWorkoutTarget] is used
- * to calculate weekly progress relative to completed workouts.
+ *
+ * [sex] and [activityLevel] drive the accurate Mifflin-St Jeor / Harris-Benedict
+ * TDEE calculation shown on the profile screen.
+ * Defaulting both to the neutral/moderate values means existing users who
+ * haven't filled them in yet still get a reasonable estimate.
  */
 data class UserProfile(
     val name: String,
@@ -12,5 +15,7 @@ data class UserProfile(
     val heightCm: Int,
     val fitnessGoal: String,
     val weeklyWorkoutTarget: Int,
-    val isPremium: Boolean
+    val isPremium: Boolean,
+    val sex: Sex = Sex.UNSPECIFIED,
+    val activityLevel: ActivityLevel = ActivityLevel.MODERATE
 )
