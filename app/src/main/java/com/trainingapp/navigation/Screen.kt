@@ -26,4 +26,8 @@ sealed class Screen(val route: String) {
     object EditWorkout : Screen("edit_workout/{workoutId}") {
         fun createRoute(workoutId: Int) = "edit_workout/$workoutId"
     }
+
+    object LiveFeed : Screen("live_feed")
+
+    object Challenges : Screen("challenges")
 }

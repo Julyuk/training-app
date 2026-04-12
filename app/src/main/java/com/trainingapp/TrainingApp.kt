@@ -7,6 +7,7 @@ import com.trainingapp.data.local.ProfilePreferences
 import com.trainingapp.data.remote.MockWorkoutApiService
 import com.trainingapp.data.repository.WorkoutRepository
 import com.trainingapp.data.repository.WorkoutRepositoryImpl
+import com.trainingapp.data.websocket.MockSocketManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -35,11 +36,22 @@ class TrainingApp : Application() {
         )
     }
 
+    /**
+     * Shared WebSocket manager — single connection for the entire app.
+     * Both the Live Feed and Challenges screens observe this instance so only
+     * one physical (mock) socket is open at a time.
+     */
+    val socketManager: MockSocketManager by lazy {
+        MockSocketManager()
+    }
+
     override fun onCreate() {
         super.onCreate()
         applicationScope.launch {
             seedDatabaseIfEmpty()
         }
+        // Establish the WebSocket connection as soon as the app starts.
+        socketManager.connect("ws://training-app.local/ws")
     }
 
     /**
