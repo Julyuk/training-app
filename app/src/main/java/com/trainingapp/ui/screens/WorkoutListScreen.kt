@@ -15,6 +15,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.trainingapp.data.model.SyncStatus
 import com.trainingapp.data.model.Workout
 import com.trainingapp.data.model.WorkoutCategory
 import java.time.format.DateTimeFormatter
@@ -156,6 +157,12 @@ private fun WorkoutCard(
                 }
                 if (hasActiveChallenge) {
                     InfoChip("🎯 Виклик")
+                }
+                // Sync status badge — visible only for records not yet uploaded
+                when (workout.syncStatus) {
+                    SyncStatus.PENDING -> InfoChip("⏳ Синхронізація")
+                    SyncStatus.ERROR   -> InfoChip("❌ Помилка")
+                    SyncStatus.SYNCED  -> Unit
                 }
             }
         }
