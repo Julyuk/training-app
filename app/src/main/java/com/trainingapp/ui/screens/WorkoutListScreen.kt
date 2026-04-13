@@ -16,6 +16,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.trainingapp.data.model.Workout
+import com.trainingapp.data.model.WorkoutCategory
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
@@ -31,7 +32,9 @@ fun WorkoutListScreen(
     onWorkoutClick: (Workout) -> Unit,
     onToggleCompleted: (Int) -> Unit,
     onDeleteClick: (Int) -> Unit,
-    onAddClick: () -> Unit
+    onAddClick: () -> Unit,
+    /** Categories that belong to at least one joined challenge — drives the 🎯 badge. */
+    joinedChallengeCategories: Set<WorkoutCategory> = emptySet()
 ) {
     val dateFormatter = DateTimeFormatter.ofPattern("d MMMM yyyy", Locale("uk"))
     val completedCount = workouts.count { it.isCompleted }
@@ -72,6 +75,7 @@ fun WorkoutListScreen(
                     WorkoutCard(
                         workout = workout,
                         dateText = workout.date.format(dateFormatter),
+                        hasActiveChallenge = workout.category in joinedChallengeCategories,
                         onClick = { onWorkoutClick(workout) },
                         onToggleCompleted = { onToggleCompleted(workout.id) },
                         onDeleteClick = { onDeleteClick(workout.id) }
@@ -86,6 +90,7 @@ fun WorkoutListScreen(
 private fun WorkoutCard(
     workout: Workout,
     dateText: String,
+    hasActiveChallenge: Boolean,
     onClick: () -> Unit,
     onToggleCompleted: () -> Unit,
     onDeleteClick: () -> Unit
@@ -96,14 +101,42 @@ private fun WorkoutCard(
             .clickable { onClick() },
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
-        Row(
-            modifier = Modifier.padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // Completion toggle
-            IconButton(
-                onClick = onToggleCompleted,
-                modifier = Modifier.size(36.dp)
+        // Use a Column layout so icons never fight with the 48 dp
+        // minimum touch-target that IconButton enforces internally.
+        Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)) {
+
+            // ── Title row: title on the left, delete icon on the right ──────
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = "${workout.category.emoji} ${workout.title}",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.weight(1f)
+                )
+                // Plain Icon + clickable — no IconButton, no 48 dp minimum
+                Icon(
+                    imageVector = Icons.Filled.Delete,
+                    contentDescription = "Видалити тренування",
+                    tint = MaterialTheme.colorScheme.error,
+                    modifier = Modifier
+                        .size(18.dp)
+                        .clickable { onDeleteClick() }
+                )
+            }
+
+            Spacer(Modifier.height(2.dp))
+            Text(
+                text = dateText,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            Spacer(Modifier.height(6.dp))
+
+            // ── Bottom row: toggle icon + chips ─────────────────────────────
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 Icon(
                     imageVector = if (workout.isCompleted) Icons.Filled.CheckCircle
@@ -112,38 +145,18 @@ private fun WorkoutCard(
                                          else "Позначити як виконане",
                     tint = if (workout.isCompleted) MaterialTheme.colorScheme.primary
                            else MaterialTheme.colorScheme.outline,
-                    modifier = Modifier.size(28.dp)
+                    modifier = Modifier
+                        .size(20.dp)
+                        .clickable { onToggleCompleted() }
                 )
-            }
-
-            Spacer(Modifier.width(12.dp))
-
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = "${workout.category.emoji} ${workout.title}",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold
-                )
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    text = dateText,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Spacer(Modifier.height(4.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    InfoChip("⏱ ${workout.durationMinutes} хв")
-                    InfoChip("🔥 ${workout.caloriesBurned} ккал")
+                InfoChip("⏱ ${workout.durationMinutes} хв")
+                InfoChip("🔥 ${workout.caloriesBurned} ккал")
+                if (workout.exercises.isNotEmpty()) {
                     InfoChip("🏋 ${workout.exercises.size} вправ")
                 }
-            }
-
-            IconButton(onClick = onDeleteClick) {
-                Icon(
-                    imageVector = Icons.Filled.Delete,
-                    contentDescription = "Видалити тренування",
-                    tint = MaterialTheme.colorScheme.error
-                )
+                if (hasActiveChallenge) {
+                    InfoChip("🎯 Виклик")
+                }
             }
         }
     }
