@@ -273,4 +273,69 @@ class WorkoutRepositoryImplTest {
 
         coVerify { dao.toggleCompleted(1) }
     }
+
+    // ── uploadPendingWorkouts ─────────────────────────────────────────────────
+
+    @Test
+    fun `uploadPendingWorkouts calls createWorkout for each pending record`() = runTest {
+        val pending = listOf(
+            fakeWithExercises(testWorkout.copy(id = 1, syncStatus = SyncStatus.PENDING)),
+            fakeWithExercises(testWorkout.copy(id = 2, title = "Evening Run", syncStatus = SyncStatus.PENDING))
+        )
+        coEvery { dao.getPendingWorkoutsWithExercises() } returns pending
+        coEvery { apiService.createWorkout(any()) } answers {
+            firstArg<com.trainingapp.data.remote.dto.WorkoutDto>().copy(id = 99)
+        }
+        coEvery { dao.updateSyncStatus(any(), any()) } just Runs
+
+        repository.uploadPendingWorkouts()
+
+        coVerify(exactly = 2) { apiService.createWorkout(any()) }
+    }
+
+    @Test
+    fun `uploadPendingWorkouts marks each uploaded workout as SYNCED`() = runTest {
+        val pending = listOf(fakeWithExercises(testWorkout.copy(syncStatus = SyncStatus.PENDING)))
+        coEvery { dao.getPendingWorkoutsWithExercises() } returns pending
+        coEvery { apiService.createWorkout(any()) } answers {
+            firstArg<com.trainingapp.data.remote.dto.WorkoutDto>().copy(id = 99)
+        }
+        val capturedStatuses = mutableListOf<String>()
+        coEvery { dao.updateSyncStatus(any(), capture(capturedStatuses)) } just Runs
+
+        repository.uploadPendingWorkouts()
+
+        assertEquals(SyncStatus.SYNCED.name, capturedStatuses.first())
+    }
+
+    @Test
+    fun `uploadPendingWorkouts silently ignores network exceptions`() = runTest {
+        coEvery { dao.getPendingWorkoutsWithExercises() } returns
+            listOf(fakeWithExercises(testWorkout.copy(syncStatus = SyncStatus.PENDING)))
+        coEvery { apiService.createWorkout(any()) } throws IOException("No network")
+
+        // Must not propagate
+        repository.uploadPendingWorkouts()
+    }
+
+    @Test
+    fun `uploadPendingWorkouts does nothing when no PENDING records exist`() = runTest {
+        coEvery { dao.getPendingWorkoutsWithExercises() } returns emptyList()
+
+        repository.uploadPendingWorkouts()
+
+        coVerify(exactly = 0) { apiService.createWorkout(any()) }
+        coVerify(exactly = 0) { dao.updateSyncStatus(any(), any()) }
+    }
+
+    @Test
+    fun `uploadPendingWorkouts does not call updateSyncStatus on network failure`() = runTest {
+        coEvery { dao.getPendingWorkoutsWithExercises() } returns
+            listOf(fakeWithExercises(testWorkout.copy(syncStatus = SyncStatus.PENDING)))
+        coEvery { apiService.createWorkout(any()) } throws IOException("Timeout")
+
+        repository.uploadPendingWorkouts()
+
+        coVerify(exactly = 0) { dao.updateSyncStatus(any(), any()) }
+    }
 }
