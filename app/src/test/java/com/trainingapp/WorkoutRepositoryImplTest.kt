@@ -24,6 +24,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Before
 import org.junit.Test
+import java.io.IOException
 import java.time.LocalDate
 
 /**
@@ -213,7 +214,10 @@ class WorkoutRepositoryImplTest {
 
     @Test
     fun `syncWithApi silently ignores network exceptions`() = runTest {
-        coEvery { apiService.getWorkouts() } throws RuntimeException("No network")
+        // BUG FIX: was RuntimeException — but syncWithApi now only catches IOException.
+        // RuntimeException would propagate and crash the caller, masking real bugs.
+        // Use IOException to correctly simulate a network/connectivity failure.
+        coEvery { apiService.getWorkouts() } throws IOException("No network")
 
         // Must not throw
         repository.syncWithApi()
@@ -221,7 +225,7 @@ class WorkoutRepositoryImplTest {
 
     @Test
     fun `syncWithApi does not write to DAO on network failure`() = runTest {
-        coEvery { apiService.getWorkouts() } throws RuntimeException("Timeout")
+        coEvery { apiService.getWorkouts() } throws IOException("Timeout")
 
         repository.syncWithApi()
 
