@@ -11,6 +11,7 @@ import com.trainingapp.data.remote.dto.toDomain
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.map
+import java.io.IOException
 
 /*
  * ════════════════════════════════════════════════════════════════════
@@ -100,8 +101,10 @@ class WorkoutRepositoryImpl(
                     saveWorkout(incoming)
                 }
             }
-        } catch (_: Exception) {
-            // Network unavailable — local data remains the source of truth.
+        } catch (_: IOException) {
+            // Network unavailable or timeout — local data remains the source of truth.
+            // Only IO exceptions are silenced; programming errors (NPE, ClassCast, etc.)
+            // are intentionally NOT caught here so they surface during development.
         }
     }
 }
