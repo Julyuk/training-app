@@ -7,6 +7,7 @@ import com.trainingapp.data.model.Exercise
 import com.trainingapp.data.model.SyncStatus
 import com.trainingapp.data.model.Workout
 import com.trainingapp.data.remote.WorkoutApiService
+import com.trainingapp.data.remote.dto.toDto
 import com.trainingapp.data.remote.dto.toDomain
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.firstOrNull
@@ -78,6 +79,33 @@ class WorkoutRepositoryImpl(
 
     override suspend fun deleteWorkout(id: Int) {
         workoutDao.deleteWorkoutById(id)
+    }
+
+    // ── Upload pending ────────────────────────────────────────────────
+
+    /**
+     * Uploads every PENDING workout to the server.
+     *
+     * Flow:
+     *  1. Query Room for all records with sync_status = PENDING.
+     *  2. For each, call [apiService.createWorkout] (mock: 500 ms delay).
+     *  3. On success, mark the local record as SYNCED via [workoutDao.updateSyncStatus].
+     *
+     * If the network is unavailable (IOException), the function returns silently
+     * so the app stays functional offline.  PENDING records remain PENDING and
+     * will be retried the next time [ConnectivityNetworkMonitor] reports online.
+     */
+    override suspend fun uploadPendingWorkouts() {
+        try {
+            val pending = workoutDao.getPendingWorkoutsWithExercises()
+            pending.forEach { withExercises ->
+                val workout = withExercises.toDomain()
+                apiService.createWorkout(workout.toDto())
+                workoutDao.updateSyncStatus(workout.id, SyncStatus.SYNCED.name)
+            }
+        } catch (_: IOException) {
+            // Network unavailable — PENDING records stay pending, retried later.
+        }
     }
 
     // ── Sync ──────────────────────────────────────────────────────────

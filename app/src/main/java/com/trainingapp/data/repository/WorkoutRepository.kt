@@ -38,6 +38,14 @@ interface WorkoutRepository {
     suspend fun deleteWorkout(id: Int)
 
     /**
+     * Upload all locally-created or modified workouts ([SyncStatus.PENDING]) to the server.
+     * After each successful upload the record is marked [com.trainingapp.data.model.SyncStatus.SYNCED].
+     * On network failure the function returns silently; PENDING records will be
+     * retried the next time connectivity is available.
+     */
+    suspend fun uploadPendingWorkouts()
+
+    /**
      * Pull the latest data from the remote API and merge it into local storage.
      * On success, updated records are marked [com.trainingapp.data.model.SyncStatus.SYNCED].
      * On network failure the function returns silently; local data is preserved.
