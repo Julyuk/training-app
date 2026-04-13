@@ -82,4 +82,23 @@ interface WorkoutDao {
 
     @Query("DELETE FROM workouts")
     suspend fun deleteAllWorkouts()
+
+    // ── Pending-upload helpers ─────────────────────────────────────────────────
+
+    /**
+     * Returns all workouts whose [sync_status] is PENDING — i.e. created or
+     * modified offline and not yet uploaded to the server.
+     * Used by [WorkoutRepository.uploadPendingWorkouts].
+     */
+    @Transaction
+    @Query("SELECT * FROM workouts WHERE sync_status = 'PENDING'")
+    suspend fun getPendingWorkoutsWithExercises(): List<WorkoutWithExercises>
+
+    /**
+     * Atomically updates the [sync_status] column for a single workout.
+     * Called after a successful server upload to mark the record as SYNCED,
+     * or after a failed upload to mark it as ERROR.
+     */
+    @Query("UPDATE workouts SET sync_status = :status WHERE id = :id")
+    suspend fun updateSyncStatus(id: Int, status: String)
 }
