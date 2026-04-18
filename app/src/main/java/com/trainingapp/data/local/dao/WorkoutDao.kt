@@ -28,6 +28,11 @@ interface WorkoutDao {
     @Query("SELECT * FROM workouts ORDER BY date DESC")
     fun getAllWorkoutsWithExercises(): Flow<List<WorkoutWithExercises>>
 
+    /** One-shot snapshot of all workouts — for sync logic that doesn't need a live stream. */
+    @Transaction
+    @Query("SELECT * FROM workouts")
+    suspend fun getAllWorkoutsSnapshot(): List<WorkoutWithExercises>
+
     // ── Read one ─────────────────────────────────────────────────────────────
 
     @Transaction
@@ -67,6 +72,20 @@ interface WorkoutDao {
         }
     }
 
+    /**
+     * Saves a batch of workouts and their exercises in a single transaction.
+     * Room fires InvalidationTracker once for the whole batch instead of once
+     * per workout, so observers (e.g. the list screen) only recompose once.
+     */
+    @Transaction
+    suspend fun batchInsertWorkoutsWithExercises(
+        pairs: List<Pair<WorkoutEntity, List<WorkoutExerciseEntity>>>
+    ) {
+        for ((workout, exercises) in pairs) {
+            insertWorkoutWithExercises(workout, exercises)
+        }
+    }
+
     @Query("SELECT COUNT(*) FROM workouts")
     suspend fun countWorkouts(): Int
 
@@ -101,4 +120,14 @@ interface WorkoutDao {
      */
     @Query("UPDATE workouts SET sync_status = :status WHERE id = :id")
     suspend fun updateSyncStatus(id: Int, status: String)
+
+    /**
+     * Updates sync statuses for a batch of workouts in one transaction.
+     * Room fires InvalidationTracker once instead of once per workout,
+     * so the list screen recomposes only once after all uploads complete.
+     */
+    @Transaction
+    suspend fun batchUpdateSyncStatuses(updates: List<Pair<Int, String>>) {
+        updates.forEach { (id, status) -> updateSyncStatus(id, status) }
+    }
 }

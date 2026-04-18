@@ -9,8 +9,11 @@ import com.trainingapp.data.model.Workout
 import com.trainingapp.data.remote.WorkoutApiService
 import com.trainingapp.data.remote.dto.toDto
 import com.trainingapp.data.remote.dto.toDomain
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import java.io.IOException
 
@@ -46,21 +49,21 @@ class WorkoutRepositoryImpl(
     // ── Read list ────────────────────────────────────────────────────
 
     override fun getAllWorkouts(): Flow<List<Workout>> =
-        workoutDao.getAllWorkoutsWithExercises().map { list ->
-            list.map { it.toDomain() }
-        }
+        workoutDao.getAllWorkoutsWithExercises()
+            .map { list -> list.map { it.toDomain() } }
+            .flowOn(Dispatchers.Default)
 
     // ── Read one ─────────────────────────────────────────────────────
 
     override fun getWorkoutById(id: Int): Flow<Workout?> =
-        workoutDao.getWorkoutsWithExercisesById(id).map { list ->
-            list.firstOrNull()?.toDomain()
-        }
+        workoutDao.getWorkoutsWithExercisesById(id)
+            .map { list -> list.firstOrNull()?.toDomain() }
+            .flowOn(Dispatchers.Default)
 
     override fun getExerciseById(exerciseId: Int): Flow<Exercise?> =
-        workoutDao.getExerciseByIdFlow(exerciseId).map { entity ->
-            entity?.toDomain()
-        }
+        workoutDao.getExerciseByIdFlow(exerciseId)
+            .map { entity -> entity?.toDomain() }
+            .flowOn(Dispatchers.Default)
 
     // ── Save ─────────────────────────────────────────────────────────
 
@@ -96,16 +99,36 @@ class WorkoutRepositoryImpl(
      * will be retried the next time [ConnectivityNetworkMonitor] reports online.
      */
     override suspend fun uploadPendingWorkouts() {
-        try {
-            val pending = workoutDao.getPendingWorkoutsWithExercises()
-            pending.forEach { withExercises ->
-                val workout = withExercises.toDomain()
-                apiService.createWorkout(workout.toDto())
-                workoutDao.updateSyncStatus(workout.id, SyncStatus.SYNCED.name)
-            }
-        } catch (_: IOException) {
-            // Network unavailable — PENDING records stay pending, retried later.
+        val pending = try {
+            workoutDao.getPendingWorkoutsWithExercises()
+        } catch (_: Exception) {
+            return
         }
+        if (pending.isEmpty()) return
+
+        // Upload all pending workouts in parallel — total time ≈ one network round-trip
+        // instead of N × round-trip when uploading sequentially.
+        val results: List<Pair<Int, SyncStatus?>> = coroutineScope {
+            pending.map { withExercises ->
+                async {
+                    val workout = withExercises.toDomain()
+                    val newStatus: SyncStatus? = try {
+                        apiService.createWorkout(workout.toDto())
+                        SyncStatus.SYNCED
+                    } catch (_: IOException) {
+                        null // leave PENDING — retried on next connectivity restore
+                    } catch (_: Exception) {
+                        SyncStatus.ERROR
+                    }
+                    workout.id to newStatus
+                }
+            }.map { it.await() }
+        }
+
+        // One transaction for all status updates → Room fires one invalidation
+        // instead of N, so the list screen recomposes only once.
+        val updates = results.mapNotNull { (id, status) -> status?.let { id to it.name } }
+        if (updates.isNotEmpty()) workoutDao.batchUpdateSyncStatuses(updates)
     }
 
     // ── Sync ──────────────────────────────────────────────────────────
@@ -119,20 +142,33 @@ class WorkoutRepositoryImpl(
      */
     override suspend fun syncWithApi() {
         try {
-            val remoteWorkouts = apiService.getWorkouts()
-            remoteWorkouts.forEach { dto ->
-                val incoming = dto.toDomain().copy(syncStatus = SyncStatus.SYNCED)
-                val local = workoutDao.getWorkoutsWithExercisesById(incoming.id)
-                    .map { it.firstOrNull()?.toDomain() }
-                    .firstOrNull()
-                if (local == null || local.syncStatus != SyncStatus.PENDING) {
-                    saveWorkout(incoming)
+            // Fetch remote and local state in parallel — both are independent reads.
+            val remoteWorkouts: List<com.trainingapp.data.remote.dto.WorkoutDto>
+            val localById: Map<Int, Workout>
+            coroutineScope {
+                val remoteDeferred = async { apiService.getWorkouts() }
+                val localDeferred = async {
+                    workoutDao.getAllWorkoutsSnapshot().associate { it.workout.id to it.toDomain() }
                 }
+                remoteWorkouts = remoteDeferred.await()
+                localById = localDeferred.await()
+            }
+
+            // Skip workouts where local copy is PENDING (unsaved user changes).
+            val toSave = remoteWorkouts.mapNotNull { dto ->
+                val incoming = dto.toDomain().copy(syncStatus = SyncStatus.SYNCED)
+                val local = localById[incoming.id]
+                if (local == null || local.syncStatus != SyncStatus.PENDING) incoming else null
+            }
+
+            // One transaction → one Room invalidation → one list recomposition.
+            if (toSave.isNotEmpty()) {
+                workoutDao.batchInsertWorkoutsWithExercises(
+                    toSave.map { w -> w.toEntity() to w.exercises.map { it.toEntity(w.id) } }
+                )
             }
         } catch (_: IOException) {
-            // Network unavailable or timeout — local data remains the source of truth.
-            // Only IO exceptions are silenced; programming errors (NPE, ClassCast, etc.)
-            // are intentionally NOT caught here so they surface during development.
+            // Network unavailable — local data remains the source of truth.
         }
     }
 }

@@ -14,7 +14,7 @@ import kotlinx.coroutines.delay
  * interface, so swapping implementations requires no changes in the rest of the app.
  */
 class MockWorkoutApiService(
-    private val delayMs: Long = 500L
+    private val delayMs: Long = 100L
 ) : WorkoutApiService {
 
     // In-memory mutable store so create/delete calls are observable within a session.
