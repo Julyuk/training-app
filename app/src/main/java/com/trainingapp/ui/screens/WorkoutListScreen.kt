@@ -26,7 +26,7 @@ import java.util.Locale
  * Each card shows the workout title, date, category, duration and completion status.
  * Tapping a card triggers [onWorkoutClick] to navigate to the detail screen.
  */
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun WorkoutListScreen(
     workouts: List<Workout>,
@@ -87,6 +87,7 @@ fun WorkoutListScreen(
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun WorkoutCard(
     workout: Workout,
@@ -137,7 +138,8 @@ private fun WorkoutCard(
             // ── Bottom row: toggle icon + chips ─────────────────────────────
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                modifier = Modifier.fillMaxWidth()
             ) {
                 Icon(
                     imageVector = if (workout.isCompleted) Icons.Filled.CheckCircle
@@ -150,19 +152,24 @@ private fun WorkoutCard(
                         .size(20.dp)
                         .clickable { onToggleCompleted() }
                 )
-                InfoChip("⏱ ${workout.durationMinutes} хв")
-                InfoChip("🔥 ${workout.caloriesBurned} ккал")
-                if (workout.exercises.isNotEmpty()) {
-                    InfoChip("🏋 ${workout.exercises.size} вправ")
-                }
-                if (hasActiveChallenge) {
-                    InfoChip("🎯 Виклик")
-                }
-                // Sync status badge — visible only for records not yet uploaded
-                when (workout.syncStatus) {
-                    SyncStatus.PENDING -> InfoChip("⏳ Синхронізація")
-                    SyncStatus.ERROR   -> InfoChip("❌ Помилка")
-                    SyncStatus.SYNCED  -> Unit
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    InfoChip("⏱ ${workout.durationMinutes} хв")
+                    InfoChip("🔥 ${workout.caloriesBurned} ккал")
+                    if (workout.exercises.isNotEmpty()) {
+                        InfoChip("🏋 ${workout.exercises.size} вправ")
+                    }
+                    if (hasActiveChallenge) {
+                        InfoChip("🎯 Виклик")
+                    }
+                    // Sync status badge — visible only for records not yet uploaded
+                    when (workout.syncStatus) {
+                        SyncStatus.PENDING -> InfoChip("⏳ Синхронізація")
+                        SyncStatus.ERROR   -> InfoChip("❌ Помилка")
+                        SyncStatus.SYNCED  -> Unit
+                    }
                 }
             }
         }
