@@ -72,8 +72,10 @@ class TrainingApp : Application() {
 
         applicationScope.launch {
             seedDatabaseIfEmpty()
-            // Pull server data on every cold start.  PENDING local records
-            // are intentionally preserved (see WorkoutRepositoryImpl.syncWithApi).
+            // Upload any PENDING changes first, then pull server state.
+            // This order matters: upload before sync so the server has the
+            // latest local data before we merge its response back.
+            workoutRepository.uploadPendingWorkouts()
             workoutRepository.syncWithApi()
         }
 

@@ -275,8 +275,8 @@ fun EditWorkoutScreen(
                         workout.copy(
                             title = title.trim(),
                             description = description.trim(),
-                            durationMinutes = duration.toInt(),
-                            caloriesBurned = calories.toInt(),
+                            durationMinutes = duration.toIntOrNull() ?: 0,
+                            caloriesBurned = calories.toIntOrNull() ?: 0,
                             isCompleted = isCompleted,
                             category = selectedCategory,
                             date = selectedDate,
@@ -452,8 +452,8 @@ private fun ExerciseForm(
                             id = initial?.id ?: 0,
                             name = name.trim(),
                             muscleGroup = muscleGroup.trim(),
-                            sets = sets.toInt(),
-                            reps = reps.toInt(),
+                            sets = sets.toIntOrNull() ?: 0,
+                            reps = reps.toIntOrNull() ?: 0,
                             weightKg = if (isBodyweight) 0f else weightKg.toFloatOrNull() ?: 0f,
                             isBodyweight = isBodyweight,
                             notes = notes.trim()

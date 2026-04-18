@@ -43,12 +43,14 @@ class WorkoutListViewModel(
     fun toggleCompleted(id: Int) {
         viewModelScope.launch {
             repository.toggleCompleted(id)
+            repository.uploadPendingWorkouts()
         }
     }
 
     fun updateWorkout(workout: Workout) {
         viewModelScope.launch {
-            repository.saveWorkout(workout) // REPLACE strategy handles the update
+            repository.saveWorkout(workout)
+            repository.uploadPendingWorkouts()
         }
     }
 
@@ -64,23 +66,25 @@ class WorkoutListViewModel(
         durationMinutes: Int,
         caloriesBurned: Int,
         isCompleted: Boolean,
-        category: WorkoutCategory
+        category: WorkoutCategory,
+        date: LocalDate = LocalDate.now()
     ) {
         viewModelScope.launch {
             repository.saveWorkout(
                 Workout(
-                    id = 0, // Room auto-generates the real ID (autoGenerate = true)
+                    id = 0,
                     title = title,
                     description = description,
                     durationMinutes = durationMinutes,
                     caloriesBurned = caloriesBurned,
                     isCompleted = isCompleted,
-                    date = LocalDate.now(),
+                    date = date,
                     category = category,
                     exercises = emptyList(),
                     syncStatus = SyncStatus.PENDING
                 )
             )
+            repository.uploadPendingWorkouts()
         }
     }
 

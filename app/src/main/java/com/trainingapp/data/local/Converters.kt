@@ -23,11 +23,13 @@ class Converters {
     fun fromWorkoutCategory(category: WorkoutCategory): String = category.name
 
     @TypeConverter
-    fun toWorkoutCategory(value: String): WorkoutCategory = WorkoutCategory.valueOf(value)
+    fun toWorkoutCategory(value: String): WorkoutCategory =
+        runCatching { WorkoutCategory.valueOf(value) }.getOrDefault(WorkoutCategory.STRENGTH)
 
     @TypeConverter
     fun fromSyncStatus(status: SyncStatus): String = status.name
 
     @TypeConverter
-    fun toSyncStatus(value: String): SyncStatus = SyncStatus.valueOf(value)
+    fun toSyncStatus(value: String): SyncStatus =
+        runCatching { SyncStatus.valueOf(value) }.getOrDefault(SyncStatus.SYNCED)
 }
