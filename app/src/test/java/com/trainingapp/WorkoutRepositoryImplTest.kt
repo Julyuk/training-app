@@ -186,12 +186,12 @@ class WorkoutRepositoryImplTest {
             category = "CARDIO", exercises = emptyList()
         )
         coEvery { apiService.getWorkouts() } returns listOf(remoteDto)
-        every { dao.getWorkoutsWithExercisesById(10) } returns flowOf(emptyList())
-        coEvery { dao.insertWorkoutWithExercises(any(), any()) } just Runs
+        coEvery { dao.getAllWorkoutsSnapshot() } returns emptyList()
+        coEvery { dao.batchInsertWorkoutsWithExercises(any()) } just Runs
 
         repository.syncWithApi()
 
-        coVerify { dao.insertWorkoutWithExercises(any(), any()) }
+        coVerify { dao.batchInsertWorkoutsWithExercises(any()) }
     }
 
     @Test
@@ -202,22 +202,20 @@ class WorkoutRepositoryImplTest {
             category = "STRENGTH", exercises = emptyList()
         )
         coEvery { apiService.getWorkouts() } returns listOf(remoteDto)
-        every { dao.getWorkoutsWithExercisesById(20) } returns flowOf(emptyList())
+        coEvery { dao.getAllWorkoutsSnapshot() } returns emptyList()
 
-        val insertedEntities = mutableListOf<com.trainingapp.data.local.entity.WorkoutEntity>()
-        coEvery { dao.insertWorkoutWithExercises(capture(insertedEntities), any()) } just Runs
+        val capturedBatches = mutableListOf<List<Pair<com.trainingapp.data.local.entity.WorkoutEntity, List<WorkoutExerciseEntity>>>>()
+        coEvery { dao.batchInsertWorkoutsWithExercises(capture(capturedBatches)) } just Runs
 
         repository.syncWithApi()
 
-        assertEquals(SyncStatus.SYNCED, insertedEntities.first().syncStatus)
+        assertEquals(SyncStatus.SYNCED, capturedBatches.first().first().first.syncStatus)
     }
 
     @Test
     fun `syncWithApi silently ignores network exceptions`() = runTest {
-        // BUG FIX: was RuntimeException — but syncWithApi now only catches IOException.
-        // RuntimeException would propagate and crash the caller, masking real bugs.
-        // Use IOException to correctly simulate a network/connectivity failure.
         coEvery { apiService.getWorkouts() } throws IOException("No network")
+        coEvery { dao.getAllWorkoutsSnapshot() } returns emptyList()
 
         // Must not throw
         repository.syncWithApi()
@@ -226,10 +224,11 @@ class WorkoutRepositoryImplTest {
     @Test
     fun `syncWithApi does not write to DAO on network failure`() = runTest {
         coEvery { apiService.getWorkouts() } throws IOException("Timeout")
+        coEvery { dao.getAllWorkoutsSnapshot() } returns emptyList()
 
         repository.syncWithApi()
 
-        coVerify(exactly = 0) { dao.insertWorkoutWithExercises(any(), any()) }
+        coVerify(exactly = 0) { dao.batchInsertWorkoutsWithExercises(any()) }
     }
 
     @Test
@@ -241,11 +240,11 @@ class WorkoutRepositoryImplTest {
         )
         val localPending = fakeWithExercises(testWorkout.copy(syncStatus = SyncStatus.PENDING))
         coEvery { apiService.getWorkouts() } returns listOf(remoteDto)
-        every { dao.getWorkoutsWithExercisesById(1) } returns flowOf(listOf(localPending))
+        coEvery { dao.getAllWorkoutsSnapshot() } returns listOf(localPending)
 
         repository.syncWithApi()
 
-        coVerify(exactly = 0) { dao.insertWorkoutWithExercises(any(), any()) }
+        coVerify(exactly = 0) { dao.batchInsertWorkoutsWithExercises(any()) }
     }
 
     @Test
@@ -257,12 +256,12 @@ class WorkoutRepositoryImplTest {
         )
         val localSynced = fakeWithExercises(testWorkout.copy(syncStatus = SyncStatus.SYNCED))
         coEvery { apiService.getWorkouts() } returns listOf(remoteDto)
-        every { dao.getWorkoutsWithExercisesById(1) } returns flowOf(listOf(localSynced))
-        coEvery { dao.insertWorkoutWithExercises(any(), any()) } just Runs
+        coEvery { dao.getAllWorkoutsSnapshot() } returns listOf(localSynced)
+        coEvery { dao.batchInsertWorkoutsWithExercises(any()) } just Runs
 
         repository.syncWithApi()
 
-        coVerify(exactly = 1) { dao.insertWorkoutWithExercises(any(), any()) }
+        coVerify(exactly = 1) { dao.batchInsertWorkoutsWithExercises(any()) }
     }
 
     @Test
@@ -286,7 +285,7 @@ class WorkoutRepositoryImplTest {
         coEvery { apiService.createWorkout(any()) } answers {
             firstArg<com.trainingapp.data.remote.dto.WorkoutDto>().copy(id = 99)
         }
-        coEvery { dao.updateSyncStatus(any(), any()) } just Runs
+        coEvery { dao.batchUpdateSyncStatuses(any()) } just Runs
 
         repository.uploadPendingWorkouts()
 
@@ -300,12 +299,12 @@ class WorkoutRepositoryImplTest {
         coEvery { apiService.createWorkout(any()) } answers {
             firstArg<com.trainingapp.data.remote.dto.WorkoutDto>().copy(id = 99)
         }
-        val capturedStatuses = mutableListOf<String>()
-        coEvery { dao.updateSyncStatus(any(), capture(capturedStatuses)) } just Runs
+        val capturedUpdates = mutableListOf<List<Pair<Int, String>>>()
+        coEvery { dao.batchUpdateSyncStatuses(capture(capturedUpdates)) } just Runs
 
         repository.uploadPendingWorkouts()
 
-        assertEquals(SyncStatus.SYNCED.name, capturedStatuses.first())
+        assertEquals(SyncStatus.SYNCED.name, capturedUpdates.first().first().second)
     }
 
     @Test
@@ -325,7 +324,7 @@ class WorkoutRepositoryImplTest {
         repository.uploadPendingWorkouts()
 
         coVerify(exactly = 0) { apiService.createWorkout(any()) }
-        coVerify(exactly = 0) { dao.updateSyncStatus(any(), any()) }
+        coVerify(exactly = 0) { dao.batchUpdateSyncStatuses(any()) }
     }
 
     @Test
@@ -336,6 +335,6 @@ class WorkoutRepositoryImplTest {
 
         repository.uploadPendingWorkouts()
 
-        coVerify(exactly = 0) { dao.updateSyncStatus(any(), any()) }
+        coVerify(exactly = 0) { dao.batchUpdateSyncStatuses(any()) }
     }
 }

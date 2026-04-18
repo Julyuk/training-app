@@ -136,6 +136,7 @@ class WorkoutListViewModelTest {
     fun `addWorkout delegates to repository saveWorkout`() = runTest {
         every { repository.getAllWorkouts() } returns flowOf(emptyList())
         coEvery { repository.saveWorkout(any()) } just Runs
+        coEvery { repository.uploadPendingWorkouts() } just Runs
         viewModel = WorkoutListViewModel(repository)
 
         viewModel.addWorkout("Push Day", "Desc", 60, 400, true, WorkoutCategory.STRENGTH)
@@ -149,6 +150,7 @@ class WorkoutListViewModelTest {
         every { repository.getAllWorkouts() } returns flowOf(emptyList())
         val saved = mutableListOf<Workout>()
         coEvery { repository.saveWorkout(capture(saved)) } just Runs
+        coEvery { repository.uploadPendingWorkouts() } just Runs
         viewModel = WorkoutListViewModel(repository)
 
         viewModel.addWorkout("Leg Day", "", 45, 300, false, WorkoutCategory.STRENGTH)
@@ -162,6 +164,7 @@ class WorkoutListViewModelTest {
         every { repository.getAllWorkouts() } returns flowOf(emptyList())
         val saved = mutableListOf<Workout>()
         coEvery { repository.saveWorkout(capture(saved)) } just Runs
+        coEvery { repository.uploadPendingWorkouts() } just Runs
         viewModel = WorkoutListViewModel(repository)
 
         viewModel.addWorkout("HIIT Session", "Intervals", 30, 350, true, WorkoutCategory.HIIT)
@@ -182,6 +185,7 @@ class WorkoutListViewModelTest {
     fun `toggleCompleted delegates to repository`() = runTest {
         every { repository.getAllWorkouts() } returns flowOf(emptyList())
         coEvery { repository.toggleCompleted(any()) } just Runs
+        coEvery { repository.uploadPendingWorkouts() } just Runs
         viewModel = WorkoutListViewModel(repository)
 
         viewModel.toggleCompleted(5)
@@ -197,6 +201,7 @@ class WorkoutListViewModelTest {
         every { repository.getAllWorkouts() } returns flowOf(emptyList())
         val saved = mutableListOf<Workout>()
         coEvery { repository.saveWorkout(capture(saved)) } just Runs
+        coEvery { repository.uploadPendingWorkouts() } just Runs
         viewModel = WorkoutListViewModel(repository)
 
         val updated = makeWorkout(1, "Updated").copy(syncStatus = SyncStatus.PENDING)
