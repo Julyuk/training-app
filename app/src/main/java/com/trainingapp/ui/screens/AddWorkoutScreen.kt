@@ -1,5 +1,6 @@
 package com.trainingapp.ui.screens
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
@@ -7,18 +8,19 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.trainingapp.data.model.WorkoutCategory
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneOffset
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 
-/**
- * Form screen that lets the user create a new workout session.
- * On [onSave] the caller persists the record; the list screen updates
- * automatically because the ViewModel exposes a Room Flow.
- */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddWorkoutScreen(
@@ -29,7 +31,8 @@ fun AddWorkoutScreen(
         durationMinutes: Int,
         caloriesBurned: Int,
         isCompleted: Boolean,
-        category: WorkoutCategory
+        category: WorkoutCategory,
+        date: LocalDate
     ) -> Unit
 ) {
     var title by remember { mutableStateOf("") }
@@ -39,10 +42,36 @@ fun AddWorkoutScreen(
     var isCompleted by remember { mutableStateOf(true) }
     var selectedCategory by remember { mutableStateOf(WorkoutCategory.STRENGTH) }
     var categoryExpanded by remember { mutableStateOf(false) }
+    var selectedDate by remember { mutableStateOf(LocalDate.now()) }
+    var showDatePicker by remember { mutableStateOf(false) }
+
+    val dateFormatter = DateTimeFormatter.ofPattern("d MMMM yyyy", Locale("uk"))
 
     val isFormValid = title.isNotBlank() &&
             (duration.toIntOrNull() ?: 0) > 0 &&
             (calories.toIntOrNull() ?: 0) > 0
+
+    if (showDatePicker) {
+        val datePickerState = rememberDatePickerState(
+            initialSelectedDateMillis = selectedDate
+                .atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
+        )
+        DatePickerDialog(
+            onDismissRequest = { showDatePicker = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    datePickerState.selectedDateMillis?.let { millis ->
+                        selectedDate = Instant.ofEpochMilli(millis)
+                            .atZone(ZoneOffset.UTC).toLocalDate()
+                    }
+                    showDatePicker = false
+                }) { Text("Обрати") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDatePicker = false }) { Text("Скасувати") }
+            }
+        ) { DatePicker(state = datePickerState) }
+    }
 
     Scaffold(
         topBar = {
@@ -82,7 +111,21 @@ fun AddWorkoutScreen(
                 modifier = Modifier.fillMaxWidth()
             )
 
-            // Category dropdown
+            OutlinedTextField(
+                value = selectedDate.format(dateFormatter),
+                onValueChange = {},
+                readOnly = true,
+                label = { Text("Дата") },
+                trailingIcon = {
+                    IconButton(onClick = { showDatePicker = true }) {
+                        Icon(Icons.Filled.CalendarMonth, contentDescription = "Обрати дату")
+                    }
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { showDatePicker = true }
+            )
+
             ExposedDropdownMenuBox(
                 expanded = categoryExpanded,
                 onExpandedChange = { categoryExpanded = !categoryExpanded }
@@ -160,10 +203,11 @@ fun AddWorkoutScreen(
                         onSave(
                             title.trim(),
                             description.trim(),
-                            duration.toInt(),
-                            calories.toInt(),
+                            duration.toIntOrNull() ?: 0,
+                            calories.toIntOrNull() ?: 0,
                             isCompleted,
-                            selectedCategory
+                            selectedCategory,
+                            selectedDate
                         )
                         onBack()
                     }
