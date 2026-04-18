@@ -3,6 +3,9 @@ package com.trainingapp.data
 import com.trainingapp.data.model.*
 import com.trainingapp.data.model.ActivityLevel
 import com.trainingapp.data.model.Sex
+import com.trainingapp.data.model.UserIdentity
+import com.trainingapp.data.model.UserPhysical
+import com.trainingapp.data.model.UserPreferences
 import java.time.LocalDate
 
 /**
@@ -152,15 +155,21 @@ object SampleData {
         )
     )
 
-    val userProfile = UserProfile(
+    val userIdentity = UserIdentity(
         name = "Юлія Українець",
+        isPremium = false
+    )
+
+    val userPhysical = UserPhysical(
         age = 22,
         weightKg = 58.5f,
         heightCm = 165,
+        sex = Sex.FEMALE
+    )
+
+    val userPreferences = UserPreferences(
         fitnessGoal = "Підтримання форми та розвиток сили",
         weeklyWorkoutTarget = 4,
-        isPremium = false,
-        sex = Sex.FEMALE,
         activityLevel = ActivityLevel.MODERATE
     )
 

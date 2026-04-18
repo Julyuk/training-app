@@ -22,9 +22,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import com.trainingapp.data.model.ActivityLevel
-import com.trainingapp.data.model.Sex
-import com.trainingapp.data.model.UserProfile
+import com.trainingapp.data.model.UserIdentity
+import com.trainingapp.data.model.UserPhysical
+import com.trainingapp.data.model.UserPreferences
 import com.trainingapp.data.model.Workout
 import java.time.DayOfWeek
 import java.time.LocalDate
@@ -50,7 +50,9 @@ private fun LocalDate.monthAbbr() = MONTH_ABBR[monthValue - 1]
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileScreen(
-    profile: UserProfile,
+    identity: UserIdentity,
+    physical: UserPhysical,
+    preferences: UserPreferences,
     allWorkouts: List<Workout>,
     onEditClick: () -> Unit
 ) {
@@ -95,11 +97,11 @@ fun ProfileScreen(
     // BMR  = Mifflin-St Jeor with sex-specific offset:
     //          Male   → +5     Female → −161     Unspecified → −78 (average)
     // TDEE = BMR × user's activity-level multiplier (1.2 – 1.9)
-    val bmr = 10f * profile.weightKg +
-            6.25f * profile.heightCm -
-            5f * profile.age +
-            profile.sex.bmrOffset
-    val dailyCalorieGoal  = (bmr * profile.activityLevel.multiplier).roundToInt()
+    val bmr = 10f * physical.weightKg +
+            6.25f * physical.heightCm -
+            5f * physical.age +
+            physical.sex.bmrOffset
+    val dailyCalorieGoal  = (bmr * preferences.activityLevel.multiplier).roundToInt()
         .coerceAtLeast(1200)
     val weeklyCalorieGoal = dailyCalorieGoal * 7
 
@@ -125,11 +127,12 @@ fun ProfileScreen(
         (if (!selectedDay.isAfter(today)) bmr.roundToInt() else 0) + workoutCalsSelectedDay
 
     // ── BMI ────────────────────────────────────────────────────────────
-    val bmi = profile.weightKg / ((profile.heightCm / 100f) * (profile.heightCm / 100f))
+    val heightM = physical.heightCm / 100f
+    val bmi = if (heightM > 0f) physical.weightKg / (heightM * heightM) else 0f
 
     // ── Progress fractions ─────────────────────────────────────────────
-    val workoutRaw = if (profile.weeklyWorkoutTarget > 0)
-        completedThisWeek.toFloat() / profile.weeklyWorkoutTarget else 0f
+    val workoutRaw = if (preferences.weeklyWorkoutTarget > 0)
+        completedThisWeek.toFloat() / preferences.weeklyWorkoutTarget else 0f
     val weekCalRaw = if (weeklyCalorieGoal > 0)
         caloriesBurnedThisWeek.toFloat() / weeklyCalorieGoal else 0f
     val dayCalRaw = if (dailyCalorieGoal > 0)
@@ -197,11 +200,11 @@ fun ProfileScreen(
                     }
                     Spacer(Modifier.height(12.dp))
                     Text(
-                        profile.name,
+                        identity.name,
                         style = MaterialTheme.typography.headlineSmall,
                         fontWeight = FontWeight.Bold
                     )
-                    if (profile.isPremium) {
+                    if (identity.isPremium) {
                         Spacer(Modifier.height(4.dp))
                         Badge { Text("Premium") }
                     }
@@ -213,19 +216,19 @@ fun ProfileScreen(
                 Column(modifier = Modifier.padding(16.dp)) {
                     SectionTitle("Особисті дані")
                     Spacer(Modifier.height(12.dp))
-                    ProfileRow("Вік", "${profile.age} років")
+                    ProfileRow("Вік", "${physical.age} років")
                     HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
-                    ProfileRow("Вага", "${profile.weightKg} кг")
+                    ProfileRow("Вага", "${physical.weightKg} кг")
                     HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
-                    ProfileRow("Зріст", "${profile.heightCm} см")
+                    ProfileRow("Зріст", "${physical.heightCm} см")
                     HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
                     ProfileRow("ІМТ", String.format("%.1f", bmi))
                     HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
-                    ProfileRow("Стать", profile.sex.label)
+                    ProfileRow("Стать", physical.sex.label)
                     HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
-                    ProfileRowStacked("Рівень активності", profile.activityLevel.label)
+                    ProfileRowStacked("Рівень активності", preferences.activityLevel.label)
                     HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
-                    ProfileRow("Ціль на тиждень", "${profile.weeklyWorkoutTarget} трен.")
+                    ProfileRow("Ціль на тиждень", "${preferences.weeklyWorkoutTarget} трен.")
                 }
             }
 
@@ -234,7 +237,7 @@ fun ProfileScreen(
                 Column(modifier = Modifier.padding(16.dp)) {
                     SectionTitle("Мета")
                     Spacer(Modifier.height(8.dp))
-                    Text(profile.fitnessGoal, style = MaterialTheme.typography.bodyMedium)
+                    Text(preferences.fitnessGoal, style = MaterialTheme.typography.bodyMedium)
                 }
             }
 
@@ -340,7 +343,7 @@ fun ProfileScreen(
 
                     // Workout count progress
                     ProgressRow(
-                        label = "$completedThisWeek з ${profile.weeklyWorkoutTarget} тренувань",
+                        label = "$completedThisWeek з ${preferences.weeklyWorkoutTarget} тренувань",
                         percent = (workoutRaw * 100).roundToInt(),
                         fraction = workoutRaw.coerceIn(0f, 1f)
                     )
@@ -378,7 +381,7 @@ fun ProfileScreen(
                     CalorieHint(
                         icon = "⚡",
                         title = "Денна норма (TDEE): $dailyCalorieGoal ккал/день",
-                        body = "BMR × коефіцієнт активності (${profile.activityLevel.multiplier}). " +
+                        body = "BMR × коефіцієнт активності (${preferences.activityLevel.multiplier}). " +
                                 "Це ваш реальний добовий витрата з урахуванням способу життя. " +
                                 "Їжте менше — схуднете, більше — наберете вагу."
                     )

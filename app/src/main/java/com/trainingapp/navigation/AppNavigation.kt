@@ -175,9 +175,9 @@ fun AppNavigation() {
             composable(Screen.AddWorkout.route) {
                 AddWorkoutScreen(
                     onBack = { navController.popBackStack() },
-                    onSave = { title, description, duration, calories, isCompleted, category ->
+                    onSave = { title, description, duration, calories, isCompleted, category, date ->
                         workoutListViewModel.addWorkout(
-                            title, description, duration, calories, isCompleted, category
+                            title, description, duration, calories, isCompleted, category, date
                         )
                     }
                 )
@@ -230,9 +230,13 @@ fun AppNavigation() {
             // ── Profile ───────────────────────────────────────────────────────
             composable(Screen.Profile.route) {
                 val workouts by workoutListViewModel.workouts.collectAsState()
-                val profile by profileViewModel.profile.collectAsState()
+                val identity by profileViewModel.identity.collectAsState()
+                val physical by profileViewModel.physical.collectAsState()
+                val preferences by profileViewModel.preferences.collectAsState()
                 ProfileScreen(
-                    profile = profile,
+                    identity = identity,
+                    physical = physical,
+                    preferences = preferences,
                     allWorkouts = workouts,
                     onEditClick = { navController.navigate(Screen.EditProfile.route) }
                 )
@@ -240,11 +244,19 @@ fun AppNavigation() {
 
             // ── Edit Profile ──────────────────────────────────────────────────
             composable(Screen.EditProfile.route) {
-                val profile by profileViewModel.profile.collectAsState()
+                val identity by profileViewModel.identity.collectAsState()
+                val physical by profileViewModel.physical.collectAsState()
+                val preferences by profileViewModel.preferences.collectAsState()
                 EditProfileScreen(
-                    profile = profile,
+                    identity = identity,
+                    physical = physical,
+                    preferences = preferences,
                     onBack = { navController.popBackStack() },
-                    onSave = { profileViewModel.save(it) }
+                    onSave = { id, ph, pr ->
+                        profileViewModel.saveIdentity(id)
+                        profileViewModel.savePhysical(ph)
+                        profileViewModel.savePreferences(pr)
+                    }
                 )
             }
 

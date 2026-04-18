@@ -14,27 +14,27 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.trainingapp.data.model.ActivityLevel
 import com.trainingapp.data.model.Sex
-import com.trainingapp.data.model.UserProfile
+import com.trainingapp.data.model.UserIdentity
+import com.trainingapp.data.model.UserPhysical
+import com.trainingapp.data.model.UserPreferences
 
-/**
- * Form screen for editing [UserProfile] fields.
- * Changes are only committed when the user taps Save; tapping back discards them.
- */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EditProfileScreen(
-    profile: UserProfile,
+    identity: UserIdentity,
+    physical: UserPhysical,
+    preferences: UserPreferences,
     onBack: () -> Unit,
-    onSave: (UserProfile) -> Unit
+    onSave: (UserIdentity, UserPhysical, UserPreferences) -> Unit
 ) {
-    var name          by remember { mutableStateOf(profile.name) }
-    var age           by remember { mutableStateOf(profile.age.toString()) }
-    var weightKg      by remember { mutableStateOf(profile.weightKg.toString()) }
-    var heightCm      by remember { mutableStateOf(profile.heightCm.toString()) }
-    var fitnessGoal   by remember { mutableStateOf(profile.fitnessGoal) }
-    var weeklyTarget  by remember { mutableStateOf(profile.weeklyWorkoutTarget.toString()) }
-    var selectedSex   by remember { mutableStateOf(profile.sex) }
-    var selectedLevel by remember { mutableStateOf(profile.activityLevel) }
+    var name          by remember { mutableStateOf(identity.name) }
+    var age           by remember { mutableStateOf(physical.age.toString()) }
+    var weightKg      by remember { mutableStateOf(physical.weightKg.toString()) }
+    var heightCm      by remember { mutableStateOf(physical.heightCm.toString()) }
+    var fitnessGoal   by remember { mutableStateOf(preferences.fitnessGoal) }
+    var weeklyTarget  by remember { mutableStateOf(preferences.weeklyWorkoutTarget.toString()) }
+    var selectedSex   by remember { mutableStateOf(physical.sex) }
+    var selectedLevel by remember { mutableStateOf(preferences.activityLevel) }
     var sexExpanded   by remember { mutableStateOf(false) }
     var levelExpanded by remember { mutableStateOf(false) }
 
@@ -67,7 +67,6 @@ fun EditProfileScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Name
             OutlinedTextField(
                 value = name,
                 onValueChange = { name = it },
@@ -76,7 +75,6 @@ fun EditProfileScreen(
                 modifier = Modifier.fillMaxWidth()
             )
 
-            // Age + weekly target
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -99,7 +97,6 @@ fun EditProfileScreen(
                 )
             }
 
-            // Weight + height
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -122,7 +119,6 @@ fun EditProfileScreen(
                 )
             }
 
-            // Sex dropdown
             ExposedDropdownMenuBox(
                 expanded = sexExpanded,
                 onExpandedChange = { sexExpanded = !sexExpanded }
@@ -150,7 +146,6 @@ fun EditProfileScreen(
                 }
             }
 
-            // Activity level dropdown
             ExposedDropdownMenuBox(
                 expanded = levelExpanded,
                 onExpandedChange = { levelExpanded = !levelExpanded }
@@ -179,7 +174,6 @@ fun EditProfileScreen(
                 }
             }
 
-            // Fitness goal
             OutlinedTextField(
                 value = fitnessGoal,
                 onValueChange = { fitnessGoal = it },
@@ -193,14 +187,16 @@ fun EditProfileScreen(
             Button(
                 onClick = {
                     onSave(
-                        profile.copy(
-                            name = name.trim(),
-                            age = age.toInt(),
-                            weightKg = weightKg.toFloat(),
-                            heightCm = heightCm.toInt(),
+                        identity.copy(name = name.trim()),
+                        physical.copy(
+                            age = age.toIntOrNull() ?: 0,
+                            weightKg = weightKg.toFloatOrNull() ?: 0f,
+                            heightCm = heightCm.toIntOrNull() ?: 0,
+                            sex = selectedSex
+                        ),
+                        preferences.copy(
                             fitnessGoal = fitnessGoal.trim(),
-                            weeklyWorkoutTarget = weeklyTarget.toInt(),
-                            sex = selectedSex,
+                            weeklyWorkoutTarget = weeklyTarget.toIntOrNull() ?: 0,
                             activityLevel = selectedLevel
                         )
                     )
