@@ -50,6 +50,12 @@ dependencies {
     implementation(composeBom)
     androidTestImplementation(platform("androidx.compose:compose-bom:2024.04.01"))
 
+    // Biometric authentication (fingerprint / Face ID)
+    implementation("androidx.biometric:biometric:1.1.0")
+
+    // AppCompat — required because BiometricPrompt needs a FragmentActivity
+    implementation("androidx.appcompat:appcompat:1.7.0")
+
     implementation("androidx.core:core-ktx:1.13.1")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.7.0")
     implementation("androidx.activity:activity-compose:1.9.0")

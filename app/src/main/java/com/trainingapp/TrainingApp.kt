@@ -2,10 +2,14 @@ package com.trainingapp
 
 import android.app.Application
 import com.trainingapp.data.SampleData
+import com.trainingapp.data.biometric.AppLockManager
+import com.trainingapp.data.biometric.BiometricAuthManager
+import com.trainingapp.data.biometric.BiometricAuthManagerImpl
 import com.trainingapp.data.local.AppDatabase
 import com.trainingapp.data.local.ConnectivityNetworkMonitor
 import com.trainingapp.data.local.NetworkMonitor
 import com.trainingapp.data.local.ProfilePreferences
+import com.trainingapp.data.local.SecurityPreferences
 import com.trainingapp.data.remote.MockWorkoutApiService
 import com.trainingapp.data.repository.WorkoutRepository
 import com.trainingapp.data.repository.WorkoutRepositoryImpl
@@ -39,6 +43,18 @@ class TrainingApp : Application() {
 
     val profilePreferences: ProfilePreferences by lazy {
         ProfilePreferences(this)
+    }
+
+    val securityPreferences: SecurityPreferences by lazy {
+        SecurityPreferences(this)
+    }
+
+    val biometricAuthManager: BiometricAuthManager by lazy {
+        BiometricAuthManagerImpl(this, securityPreferences)
+    }
+
+    val appLockManager: AppLockManager by lazy {
+        AppLockManager(securityPreferences)
     }
 
     val workoutRepository: WorkoutRepository by lazy {

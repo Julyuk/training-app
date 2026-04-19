@@ -4,6 +4,9 @@
     <!-- Required for ConnectivityNetworkMonitor to observe network state changes. -->
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
+    <!-- Required to show the system biometric prompt (fingerprint / Face ID). -->
+    <uses-permission android:name="android.permission.USE_BIOMETRIC" />
+
     <application
         android:name=".TrainingApp"
         android:allowBackup="true"

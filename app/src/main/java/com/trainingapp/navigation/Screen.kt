@@ -30,4 +30,6 @@ sealed class Screen(val route: String) {
     object LiveFeed : Screen("live_feed")
 
     object Challenges : Screen("challenges")
+
+    object SecuritySettings : Screen("security_settings")
 }

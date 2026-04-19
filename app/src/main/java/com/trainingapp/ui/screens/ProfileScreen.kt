@@ -12,6 +12,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -54,7 +55,8 @@ fun ProfileScreen(
     physical: UserPhysical,
     preferences: UserPreferences,
     allWorkouts: List<Workout>,
-    onEditClick: () -> Unit
+    onEditClick: () -> Unit,
+    onSecurityClick: () -> Unit = {}
 ) {
     val today = remember { LocalDate.now() }
 
@@ -158,6 +160,9 @@ fun ProfileScreen(
             TopAppBar(
                 title = { Text("Профіль") },
                 actions = {
+                    IconButton(onClick = onSecurityClick) {
+                        Icon(Icons.Filled.Lock, contentDescription = "Налаштування безпеки")
+                    }
                     IconButton(onClick = onEditClick) {
                         Icon(Icons.Filled.Edit, contentDescription = "Редагувати профіль")
                     }
